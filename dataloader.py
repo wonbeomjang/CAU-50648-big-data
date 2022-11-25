@@ -7,7 +7,6 @@ import kaggle
 import numpy as np
 import pandas as pd
 import psutil
-import torch
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset, random_split
@@ -22,7 +21,10 @@ class PogDataset(Dataset):
             with zipfile.ZipFile(competition_id + ".zip", 'r') as zip_ref:
                 zip_ref.extractall(competition_id)
 
-        df = pd.read_parquet(os.path.join(competition_id, "train.parquet"))
+        df = pd.read_parquet(os.path.join(competition_id, "dataset.parquet")
+                             if os.path.exists(os.path.join(competition_id, "dataset.parquet"))
+                             else os.path.join(competition_id, "train.parquet"))
+
         df = df.loc[df["has_thumbnail"] == True]
 
         self.image_id = df["video_id"]

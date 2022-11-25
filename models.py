@@ -6,8 +6,8 @@ class PogModel(nn.Module):
     def __init__(self):
         super(PogModel, self).__init__()
         self.backbone = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
-        self.backbone.fc = nn.Linear(512 * 4, 16)
-        self.classifier = nn.Linear(32, 1)
+        self.backbone.fc = nn.Linear(512 * 4, 8)
+        self.classifier = nn.Linear(8, 1)
 
     def forward(self, x):
         x = self.backbone(x)

@@ -94,12 +94,19 @@ class Logger:
             artifact.add_file(os.path.join(self.checkpoint_dir, "best.pt"), name="best.pt")
             self.wandb_run.log_artifact(artifact)
 
-    def save_model(self, net: nn.Module, optimizer: optim.Optimizer, lr_scheduler: Any, epoch: int,
-                   metrix: Optional[float] = None):
-        save_info = {"state_dict": net.state_dict(), "optimizer": optimizer.state_dict(),
-                     "lr_scheduler": lr_scheduler.state_dict(), "epoch": epoch, "metrix": self.metrix}
+    def save_model(self, net: nn.Module, optimizer: Optional[optim.Optimizer] = None, lr_scheduler: Optional[Any] = None,
+                   epoch: Optional[int] = None, metrix: Optional[float] = None):
+        save_info = {"state_dict": net.state_dict()}
 
-        if self.wandb:
+        if optimizer is not None:
+            save_info["optimizer"] = optimizer.state_dict()
+        if lr_scheduler is not None:
+            save_info["lr_scheduler"] = lr_scheduler.state_dict()
+        if epoch is not None:
+            save_info["epoch"] = epoch
+        if epoch is not None:
+            save_info["metrix"] = self.metrix
+        if self.wandb is not None:
             save_info["wandb_id"] = self.wandb_run.id
 
         torch.save(save_info, os.path.join(self.checkpoint_dir, "last.pt"))

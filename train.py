@@ -1,5 +1,5 @@
 import argparse
-from typing import Dict
+from typing import Dict, Optional
 
 import torch
 from torch import nn, Tensor, optim
@@ -13,13 +13,14 @@ from utils import AverageMeter
 
 
 def train_one_epoch(net: nn.Module, dataloader: DataLoader, criterion: nn.Module, optimizer: optim.Optimizer,
-                    lr_scheduler: optim.lr_scheduler.OneCycleLR, epoch: int, total_epochs: int) -> Dict[str, float]:
+                    lr_scheduler: Optional[optim.lr_scheduler.OneCycleLR], epoch: int, total_epochs: int) -> Dict[str, float]:
     device = next(net.parameters()).device
     net = net.train()
     loss_avg = AverageMeter()
 
     pbar = tqdm(dataloader)
     for images, targets in pbar:
+        lr = optimizer.param_groups[0]["lr"]
         images: Tensor = images.to(device)
         targets: Tensor = targets.to(device)
 
@@ -29,30 +30,33 @@ def train_one_epoch(net: nn.Module, dataloader: DataLoader, criterion: nn.Module
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        lr_scheduler.step()
+        if lr_scheduler is not None:
+            lr_scheduler.step()
 
         loss_avg.update(float(loss.data))
-        pbar.set_description(f"[{epoch}/{total_epochs}] Loss: {loss_avg.avg}")
+        pbar.set_description(f"[{epoch}/{total_epochs}] Lr: {lr} Loss: {loss_avg.avg}")
 
     return {"train_loss": loss_avg.avg}
 
 
 def val(net: nn.Module, dataloader: DataLoader, criterion: nn.Module, epoch: int,
         total_epochs: int) -> Dict[str, float]:
-    device = next(net.parameters()).device
-    net = net.eval()
-    loss_avg = AverageMeter()
 
-    pbar = tqdm(dataloader)
-    for images, targets in pbar:
-        images: Tensor = images.to(device)
-        targets: Tensor = targets.to(device)
+    with torch.no_grad():
+        device = next(net.parameters()).device
+        net = net.eval()
+        loss_avg = AverageMeter()
 
-        preds = net(images)
-        loss: Tensor = criterion(preds, targets)
+        pbar = tqdm(dataloader)
+        for images, targets in pbar:
+            images: Tensor = images.to(device)
+            targets: Tensor = targets.to(device)
 
-        loss_avg.update(float(loss.data))
-        pbar.set_description(f"[{epoch}/{total_epochs}] Validation... Loss: {loss_avg.avg}")
+            preds = net(images)
+            loss: Tensor = criterion(preds, targets)
+
+            loss_avg.update(float(loss.data))
+            pbar.set_description(f"[{epoch}/{total_epochs}] Validation... Loss: {loss_avg.avg}")
 
     return {"val_loss": loss_avg.avg}
 
@@ -62,9 +66,9 @@ if __name__ == "__main__":
     
     parser.add_argument("--competition_name", type=str, default="kaggle-pog-series-s01e01")
     parser.add_argument("--checkpoint_dir", type=str, default="checkpoints")
-    parser.add_argument("--num_epochs", type=int, default=300)
+    parser.add_argument("--num_epochs", type=int, default=100)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--image_size", type=int, default=256)
     parser.add_argument("--resume", nargs="?", const=True, default=False, help="resume most recent training")
 
@@ -92,7 +96,6 @@ if __name__ == "__main__":
         logger.metrix = state_dict["metrix"]
 
     for i in range(start_epoch, args.num_epochs):
-        lr = optimizer.param_groups[0]["lr"]
         train_loss = train_one_epoch(net, train_loader, criterion, optimizer, lr_scheduler, i, args.num_epochs)
         val_loss = val(net, val_loader, criterion, i, args.num_epochs)
 

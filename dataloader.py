@@ -4,7 +4,10 @@ import zipfile
 
 import cv2
 import kaggle
+import numpy as np
 import pandas as pd
+import psutil
+import torch
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset, random_split
@@ -14,8 +17,10 @@ import albumentations as A
 class PogDataset(Dataset):
     def __init__(self, competition_id: str = "kaggle-pog-series-s01e01", image_size: int = 256, scale: int = 1):
         kaggle.api.competition_download_files(competition_id, quiet=False)
-        with zipfile.ZipFile(competition_id + ".zip", 'r') as zip_ref:
-            zip_ref.extractall(competition_id)
+
+        if not os.path.exists(competition_id):
+            with zipfile.ZipFile(competition_id + ".zip", 'r') as zip_ref:
+                zip_ref.extractall(competition_id)
 
         df = pd.read_parquet(os.path.join(competition_id, "train.parquet"))
         df = df.loc[df["has_thumbnail"] == True]
@@ -42,7 +47,7 @@ class PogDataset(Dataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         result = self.transform(image=image)
-        return result["image"], targets
+        return result["image"], np.array([targets], dtype=np.float32)
 
 
 def get_loader(batch_size, competition_name: str = "kaggle-pog-series-s01e01", image_size: int = 256, scale: int = 1):
@@ -50,6 +55,6 @@ def get_loader(batch_size, competition_name: str = "kaggle-pog-series-s01e01", i
     train_size = int(len(dataset) * 0.8)
     validation_size = len(dataset) - train_size
     train_dataset, validation_dataset = random_split(dataset, [train_size, validation_size])
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=multiprocessing.cpu_count())
-    val_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=multiprocessing.cpu_count())
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=psutil.cpu_count() // 2)
+    val_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=psutil.cpu_count() // 2)
     return train_loader, val_loader

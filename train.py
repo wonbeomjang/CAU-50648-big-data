@@ -34,7 +34,7 @@ def train_one_epoch(net: nn.Module, dataloader: DataLoader, criterion: nn.Module
             lr_scheduler.step()
 
         loss_avg.update(float(loss.data))
-        pbar.set_description(f"[{epoch}/{total_epochs}] Lr: {lr} Loss: {loss_avg.avg}")
+        pbar.set_description(f"[{epoch}/{total_epochs}] Lr: {lr} Loss: {loss_avg.avg:.4f}")
 
     return {"train_loss": loss_avg.avg}
 
@@ -56,7 +56,7 @@ def val(net: nn.Module, dataloader: DataLoader, criterion: nn.Module, epoch: int
             loss: Tensor = criterion(preds, targets)
 
             loss_avg.update(float(loss.data))
-            pbar.set_description(f"[{epoch}/{total_epochs}] Validation... Loss: {loss_avg.avg}")
+            pbar.set_description(f"[{epoch}/{total_epochs}] Validation... Loss: {loss_avg.avg:.4f}")
 
     return {"val_loss": loss_avg.avg}
 
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint_dir", type=str, default="checkpoints")
     parser.add_argument("--num_epochs", type=int, default=100)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--image_size", type=int, default=256)
     parser.add_argument("--resume", nargs="?", const=True, default=False, help="resume most recent training")
 
@@ -81,9 +81,7 @@ if __name__ == "__main__":
     optimizer = optim.Adam(net.parameters(), args.lr)
     train_loader, val_loader = get_loader(args.batch_size, image_size=args.image_size,
                                           competition_name=args.competition_name)
-    lr_scheduler = optim.lr_scheduler.OneCycleLR(optimizer, args.lr, epochs=args.num_epochs,
-                                                 steps_per_epoch=len(train_loader))
-
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, verbose=True)
     start_epoch = 0
 
     logger = Logger("bigdata", args, resume=args.resume)
@@ -96,11 +94,13 @@ if __name__ == "__main__":
         logger.metrix = state_dict["metrix"]
 
     for i in range(start_epoch, args.num_epochs):
-        train_loss = train_one_epoch(net, train_loader, criterion, optimizer, lr_scheduler, i, args.num_epochs)
+        train_loss = train_one_epoch(net, train_loader, criterion, optimizer, None, i, args.num_epochs)
         val_loss = val(net, val_loader, criterion, i, args.num_epochs)
+        lr_scheduler.step(val_loss["val_loss"])
 
         logger.log(train_loss)
         logger.log(val_loss)
+        logger.log({"lr": optimizer.param_groups[0]["lr"]})
         logger.save_model(net, optimizer, lr_scheduler, metrix=val_loss["val_loss"], epoch=i)
         logger.end_epoch()
 

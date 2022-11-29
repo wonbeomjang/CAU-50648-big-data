@@ -19,7 +19,7 @@ def train_one_epoch(net: nn.Module, dataloader: DataLoader, criterion: nn.Module
     loss_avg = AverageMeter()
 
     pbar = tqdm(dataloader)
-    for images, targets in pbar:
+    for images, targets, image_id in pbar:
         lr = optimizer.param_groups[0]["lr"]
         images: Tensor = images.to(device)
         targets: Tensor = targets.to(device)
@@ -48,7 +48,7 @@ def val(net: nn.Module, dataloader: DataLoader, criterion: nn.Module, epoch: int
         loss_avg = AverageMeter()
 
         pbar = tqdm(dataloader)
-        for images, targets in pbar:
+        for images, targets, image_id in pbar:
             images: Tensor = images.to(device)
             targets: Tensor = targets.to(device)
 

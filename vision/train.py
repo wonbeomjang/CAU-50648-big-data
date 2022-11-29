@@ -6,9 +6,9 @@ from torch import nn, Tensor, optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from vision.dataloader import get_loader
-from vision.logger import Logger
-from vision.models import PogModel
+from dataloader import get_loader
+from logger import Logger
+from models import PogModel
 from utils import AverageMeter
 
 

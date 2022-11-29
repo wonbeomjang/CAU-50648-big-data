@@ -21,9 +21,12 @@ class PogDataset(Dataset):
             with zipfile.ZipFile(competition_id + ".zip", 'r') as zip_ref:
                 zip_ref.extractall(competition_id)
 
-        df = pd.read_parquet(os.path.join(competition_id, "dataset.parquet")
-                             if os.path.exists(os.path.join(competition_id, "dataset.parquet"))
-                             else os.path.join(competition_id, "train.parquet"))
+        if os.path.exists(os.path.join("..", competition_id, "dataset.parquet")):
+            print(os.path.join("..", competition_id, "dataset.parquet"))
+            df = pd.read_parquet(os.path.join("..", competition_id, "dataset.parquet"))
+        else:
+            print(os.path.join(competition_id, "train.parquet"))
+            df = pd.read_parquet(os.path.join(os.path.join(competition_id, "train.parquet")))
 
         df = df.loc[df["has_thumbnail"] == True]
 

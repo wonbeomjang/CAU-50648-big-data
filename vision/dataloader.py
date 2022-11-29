@@ -15,16 +15,15 @@ import albumentations as A
 
 class PogDataset(Dataset):
     def __init__(self, competition_id: str = "kaggle-pog-series-s01e01", image_size: int = 256, scale: int = 1):
-        kaggle.api.competition_download_files(competition_id, quiet=False)
-
-        if not os.path.exists(competition_id):
-            with zipfile.ZipFile(competition_id + ".zip", 'r') as zip_ref:
-                zip_ref.extractall(competition_id)
 
         if os.path.exists(os.path.join("..", competition_id, "dataset.parquet")):
             print(os.path.join("..", competition_id, "dataset.parquet"))
             df = pd.read_parquet(os.path.join("..", competition_id, "dataset.parquet"))
         else:
+            kaggle.api.competition_download_files(competition_id, quiet=False)
+            if not os.path.exists(competition_id):
+                with zipfile.ZipFile(competition_id + ".zip", 'r') as zip_ref:
+                    zip_ref.extractall(competition_id)
             print(os.path.join(competition_id, "train.parquet"))
             df = pd.read_parquet(os.path.join(os.path.join(competition_id, "train.parquet")))
 
@@ -52,7 +51,7 @@ class PogDataset(Dataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         result = self.transform(image=image)
-        return result["image"], np.array([targets], dtype=np.float32)
+        return result["image"], np.array([targets], dtype=np.float32), image_id
 
 
 def get_loader(batch_size, competition_name: str = "kaggle-pog-series-s01e01", image_size: int = 256, scale: int = 1):
